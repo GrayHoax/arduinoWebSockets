@@ -93,6 +93,18 @@
 #define WEBSOCKETS_YIELD() yield()
 #define WEBSOCKETS_YIELD_MORE() delay(1)
 
+#elif defined(ARDUINO_UNOWIFIR4)
+
+#define WEBSOCKETS_MAX_DATA_SIZE (15 * 1024)
+#define WEBSOCKETS_YIELD() yield()
+#define WEBSOCKETS_YIELD_MORE() delay(1)
+
+#elif defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT)
+
+#define WEBSOCKETS_MAX_DATA_SIZE (15 * 1024)
+#define WEBSOCKETS_YIELD() yield()
+#define WEBSOCKETS_YIELD_MORE() delay(1)
+
 #else
 
 // atmega328p has only 2KB ram!
@@ -114,6 +126,9 @@
 #define NETWORK_ESP32 (4)
 #define NETWORK_ESP32_ETH (5)
 #define NETWORK_RP2040 (6)
+#define NETWORK_UNOWIFIR4 (7)
+#define NETWORK_WIFI_NINA (8)
+
 
 // max size of the WS Message Header
 #define WEBSOCKETS_MAX_HEADER_SIZE (14)
@@ -131,6 +146,12 @@
 
 #elif defined(ARDUINO_ARCH_RP2040)
 #define WEBSOCKETS_NETWORK_TYPE NETWORK_RP2040
+
+#elif defined(ARDUINO_UNOWIFIR4)
+#define WEBSOCKETS_NETWORK_TYPE NETWORK_UNOWIFIR4
+
+#elif defined(ARDUINO_SAMD_MKRWIFI1010) || defined(ARDUINO_SAMD_NANO_33_IOT)
+#define WEBSOCKETS_NETWORK_TYPE NETWORK_WIFI_NINA
 
 #else
 #define WEBSOCKETS_NETWORK_TYPE NETWORK_W5100
@@ -224,6 +245,25 @@
 #define WEBSOCKETS_NETWORK_SSL_CLASS WiFiClientSecure
 #define WEBSOCKETS_NETWORK_SERVER_CLASS WiFiServer
 
+#elif(WEBSOCKETS_NETWORK_TYPE == NETWORK_UNOWIFIR4)
+
+#include <WiFiS3.h>
+
+#define WEBSOCKETS_NETWORK_CLASS WiFiClient
+#define WEBSOCKETS_NETWORK_SERVER_CLASS WiFiServer
+
+#define WEBSOCKETS_NETWORK_CLASS WiFiClient
+#define WEBSOCKETS_NETWORK_SERVER_CLASS WiFiServer
+
+#elif(WEBSOCKETS_NETWORK_TYPE == NETWORK_WIFI_NINA)
+#if __has_include(<WiFiNINA.h>)
+    #include <WiFiNINA.h>
+#else
+    #error "Please install WiFiNINA library!"
+#endif
+
+#define WEBSOCKETS_NETWORK_CLASS WiFiClient
+#define WEBSOCKETS_NETWORK_SERVER_CLASS WiFiServer
 #else
 #error "no network type selected!"
 #endif

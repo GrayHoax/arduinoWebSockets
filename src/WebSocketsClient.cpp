@@ -48,6 +48,12 @@ void WebSocketsClient::begin(const char * host, uint16_t port, const char * url,
 #if defined(HAS_SSL)
     _fingerprint = SSL_FINGERPRINT_NULL;
     _CA_cert     = NULL;
+#ifdef ESP32
+    _CA_bundle = NULL;
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 4)
+    _CA_bundle_size = 0;
+#endif
+#endif
 #endif
 
     _client.num    = 0;
@@ -107,6 +113,7 @@ void WebSocketsClient::beginSSL(const char * host, uint16_t port, const char * u
     _client.isSSL = true;
     _fingerprint  = fingerprint;
     _CA_cert      = NULL;
+    _CA_bundle    = NULL;
 }
 
 void WebSocketsClient::beginSSL(String host, uint16_t port, String url, String fingerprint, String protocol) {
@@ -118,7 +125,28 @@ void WebSocketsClient::beginSslWithCA(const char * host, uint16_t port, const ch
     _client.isSSL = true;
     _fingerprint  = SSL_FINGERPRINT_NULL;
     _CA_cert      = CA_cert;
+    _CA_bundle    = NULL;
 }
+
+#if defined(ESP32) && ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 4)
+void WebSocketsClient::beginSslWithBundle(const char * host, uint16_t port, const char * url, const uint8_t * CA_bundle, size_t CA_bundle_size, const char * protocol) {
+    begin(host, port, url, protocol);
+    _client.isSSL   = true;
+    _fingerprint    = SSL_FINGERPRINT_NULL;
+    _CA_cert        = NULL;
+    _CA_bundle      = CA_bundle;
+    _CA_bundle_size = CA_bundle_size;
+}
+#else
+void WebSocketsClient::beginSslWithBundle(const char * host, uint16_t port, const char * url, const uint8_t * CA_bundle, const char * protocol) {
+    begin(host, port, url, protocol);
+    _client.isSSL = true;
+    _fingerprint  = SSL_FINGERPRINT_NULL;
+    _CA_cert      = NULL;
+    _CA_bundle    = CA_bundle;
+}
+#endif
+
 #else
 void WebSocketsClient::beginSSL(const char * host, uint16_t port, const char * url, const uint8_t * fingerprint, const char * protocol) {
     begin(host, port, url, protocol);
@@ -233,6 +261,13 @@ void WebSocketsClient::loop(void) {
 #error setCACert not implemented
 #endif
 #if defined(ESP32)
+            } else if(_CA_bundle) {
+                DEBUG_WEBSOCKETS("[WS-Client] setting CA bundle");
+#if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 4)
+                _client.ssl->setCACertBundle(_CA_bundle, _CA_bundle_size);
+#else
+                _client.ssl->setCACertBundle(_CA_bundle);
+#endif
             } else if(!SSL_FINGERPRINT_IS_SET) {
                 _client.ssl->setInsecure();
 #elif defined(SSL_BARESSL)
@@ -500,7 +535,11 @@ void WebSocketsClient::clientDisconnect(WSclient_t * client) {
 #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_ESP8266_ASYNC)
         client->status = WSC_NOT_CONNECTED;
 #else
-        delete client->tcp;
+        #if(WEBSOCKETS_NETWORK_TYPE == NETWORK_WIFI_NINA)
+            // does not support delete (no destructor)
+        #else
+            delete client->tcp;
+        #endif
 #endif
         client->tcp = NULL;
     }
